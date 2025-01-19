@@ -1,0 +1,21 @@
+services:
+  database:
+    container_name: todoapp_db
+    image: postgres:latest
+    ports:
+      - "5440:5432"
+    environment:
+      POSTGRES_DB: todo_app
+      POSTGRES_USER: olmosbek
+      POSTGRES_PASSWORD: qwerty123
+    volumes:
+      - postgres_todo_app_data:/var/lib/postgresql/data
+    networks:
+      - monitoring
+
+
+networks:
+  monitoring:
+    driver: bridge
+volumes:
+  postgres_todo_app_data:

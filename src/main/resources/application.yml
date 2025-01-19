@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: spring-security-revise
+  datasource:
+    url: jdbc:postgresql://localhost:5440/todo_app
+    username: olmosbek
+    password: qwerty123
+    driverClassName: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+server:
+  port: 8080
