@@ -1,6 +1,8 @@
 package com.epam.springsecurityrevise.config.security;
 
 import com.epam.springsecurityrevise.constants.SecurityConstants;
+import com.epam.springsecurityrevise.constants.Uri;
+import com.epam.springsecurityrevise.service.impl.LogoutServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -10,6 +12,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -19,6 +22,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfiguration {
     private final JwtAuthenticationFilter jwtFilter;
     private final AuthenticationProvider authenticationProvider;
+    private final LogoutServiceImpl logoutService;
 
     @Value("${security.csrf.disable}")
     private boolean csrfDisable;
@@ -35,6 +39,16 @@ public class SecurityConfiguration {
 
         http.authorizeHttpRequests(auth ->
                 auth.anyRequest().authenticated());
+
+        http.logout(httpSecurityLogoutConfigurer -> {
+            httpSecurityLogoutConfigurer.addLogoutHandler(logoutService)
+                    .logoutUrl(Uri.Auth.BASE_URI + Uri.Auth.LOGOUT)
+                    .logoutSuccessHandler(((
+                            request,
+                            response,
+                            authentication) -> SecurityContextHolder.clearContext()));
+        });
+
 
         http.authenticationProvider(authenticationProvider);
 

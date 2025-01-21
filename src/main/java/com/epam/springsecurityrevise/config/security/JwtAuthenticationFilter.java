@@ -1,12 +1,15 @@
 package com.epam.springsecurityrevise.config.security;
 
 import com.epam.springsecurityrevise.constants.SecurityConstants;
+import com.epam.springsecurityrevise.exception.TokenNotFoundException;
 import com.epam.springsecurityrevise.service.JwtService;
+import com.epam.springsecurityrevise.service.TokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,6 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final TokenService tokenService;
 
     @Override
     protected void doFilterInternal(
