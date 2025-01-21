@@ -8,6 +8,13 @@ spring:
     driverClassName: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
 server:
   port: 8080
+
+security:
+  csrf:
+    disable: true
+  token:
+    secret-key: 5533c4c8fa1e89b167eb6c023fe1b6c3fc7d4e0d327c0954aa2ab849a27f9b51
+    expiration-period: 84000

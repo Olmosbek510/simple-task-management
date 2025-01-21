@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import javax.management.relation.RoleNotFoundException;
 import java.util.Arrays;
 
 @Service
@@ -22,5 +23,12 @@ public class RoleServiceImpl implements RoleService {
                 .filter(value -> !roleRepository.existsRoleByName(value))
                 .map(value -> Role.builder().name(value).build())
                 .forEach(roleRepository::save);
+    }
+
+    @Override
+    public Role findByName(RoleName roleName) throws RoleNotFoundException {
+        return roleRepository.findRoleByName(roleName).orElseThrow(() ->
+                new RoleNotFoundException("Role '%s' not found".formatted(roleName.name()))
+        );
     }
 }
