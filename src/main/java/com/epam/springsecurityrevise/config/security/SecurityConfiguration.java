@@ -40,14 +40,12 @@ public class SecurityConfiguration {
         http.authorizeHttpRequests(auth ->
                 auth.anyRequest().authenticated());
 
-        http.logout(httpSecurityLogoutConfigurer -> {
-            httpSecurityLogoutConfigurer.addLogoutHandler(logoutService)
-                    .logoutUrl(Uri.Auth.BASE_URI + Uri.Auth.LOGOUT)
-                    .logoutSuccessHandler(((
-                            request,
-                            response,
-                            authentication) -> SecurityContextHolder.clearContext()));
-        });
+        http.logout(httpSecurityLogoutConfigurer -> httpSecurityLogoutConfigurer.addLogoutHandler(logoutService)
+                .logoutUrl(Uri.Auth.BASE_URI + Uri.Auth.LOGOUT)
+                .logoutSuccessHandler(((
+                        request,
+                        response,
+                        authentication) -> SecurityContextHolder.clearContext())));
 
 
         http.authenticationProvider(authenticationProvider);

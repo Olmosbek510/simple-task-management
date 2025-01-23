@@ -15,6 +15,8 @@ server:
 security:
   csrf:
     disable: true
-  token:
+  jwt:
     secret-key: 5533c4c8fa1e89b167eb6c023fe1b6c3fc7d4e0d327c0954aa2ab849a27f9b51
-    expiration-period: 86400000
+    expiration: 86400000 # a day
+    refresh-token:
+      expiration: 604800000 # a week

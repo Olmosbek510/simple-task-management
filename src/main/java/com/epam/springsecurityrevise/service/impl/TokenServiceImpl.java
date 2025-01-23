@@ -43,7 +43,6 @@ public class TokenServiceImpl implements TokenService {
     @Override
     public void revokeAllTokensByUserId(Long userId) {
         Integer rowsModified = tokenRepository.revokeAllByUserId(userId);
-
     }
 
     @Override

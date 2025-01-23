@@ -1,6 +1,5 @@
 package com.epam.springsecurityrevise.service.impl;
 
-import com.epam.springsecurityrevise.exception.TokenNotFoundException;
 import com.epam.springsecurityrevise.exception.TokenTypeNotFoundException;
 import com.epam.springsecurityrevise.exception.UserNotFoundException;
 import com.epam.springsecurityrevise.service.JwtService;
@@ -28,11 +27,14 @@ import java.util.function.Function;
 @Slf4j
 public class JwtServiceImpl implements JwtService {
 
-    @Value("${security.token.secret-key}")
+    @Value("${security.jwt.secret-key}")
     private String secretKey;
 
-    @Value("${security.token.expiration-period}")
-    private Long expirationPeriod;
+    @Value("${security.jwt.expiration}")
+    private Long jwtExpiration;
+
+    @Value("${security.jwt.refresh-token.expiration}")
+    private Long jwtRefreshExpiration;
 
     private final TokenService tokenService;
 
@@ -42,20 +44,35 @@ public class JwtServiceImpl implements JwtService {
     }
 
     @Override
-    @Transactional
     public String generateToken(
             Map<String, Object> extraClaims,
             UserDetails userDetails) throws UserNotFoundException, TokenTypeNotFoundException {
+        String accessToken = buildToken(extraClaims, userDetails, jwtExpiration);
+
+        tokenService.revokeAllTokensByEmail(userDetails.getUsername());
+        tokenService.saveToken(accessToken, userDetails);
+
+        return accessToken;
+    }
+
+    @Override
+    public String generateRefreshToken(UserDetails userDetails) throws
+            UserNotFoundException,
+            TokenTypeNotFoundException {
+        return buildToken(new HashMap<>(), userDetails, jwtRefreshExpiration);
+    }
+
+    private String buildToken(
+            Map<String, Object> extraClaims,
+            UserDetails userDetails,
+            long expiration) {
         String token = Jwts.builder()
                 .claims(extraClaims)
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + expirationPeriod))
+                .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
-
-        tokenService.revokeAllTokensByEmail(userDetails.getUsername());
-        tokenService.saveToken(token, userDetails);
 
         return token;
     }
@@ -72,6 +89,13 @@ public class JwtServiceImpl implements JwtService {
         return username.equals(userDetails.getUsername()) &&
                 !isTokenExpired(token) &&
                 !tokenService.isRevoked(token);
+    }
+
+    @Override
+    public boolean isRefreshTokenValid(String token, UserDetails userDetails) {
+        final String username = extractUsername(token);
+        return username.equals(userDetails.getUsername()) &&
+                !isTokenExpired(token);
     }
 
     private boolean isTokenExpired(String token) {

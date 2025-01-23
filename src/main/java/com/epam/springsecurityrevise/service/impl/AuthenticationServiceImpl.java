@@ -1,9 +1,10 @@
 package com.epam.springsecurityrevise.service.impl;
 
+import com.epam.springsecurityrevise.constants.SecurityConstants;
 import com.epam.springsecurityrevise.dto.request.AuthenticateRequestDTO;
 import com.epam.springsecurityrevise.dto.request.RegisterRequestDto;
 import com.epam.springsecurityrevise.dto.response.AuthRegisterResponseDTO;
-import com.epam.springsecurityrevise.dto.response.AuthenticateResponseDTO;
+import com.epam.springsecurityrevise.dto.response.AuthenticationResponseDTO;
 import com.epam.springsecurityrevise.exception.TokenTypeNotFoundException;
 import com.epam.springsecurityrevise.exception.UserNotFoundException;
 import com.epam.springsecurityrevise.exception.UsernameAlreadyTakenException;
@@ -11,12 +12,15 @@ import com.epam.springsecurityrevise.mapper.UserMapper;
 import com.epam.springsecurityrevise.model.Role;
 import com.epam.springsecurityrevise.model.User;
 import com.epam.springsecurityrevise.model.enums.RoleName;
-import com.epam.springsecurityrevise.service.AuthenticationService;
-import com.epam.springsecurityrevise.service.JwtService;
-import com.epam.springsecurityrevise.service.RoleService;
-import com.epam.springsecurityrevise.service.UserService;
+import com.epam.springsecurityrevise.service.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,7 +28,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.management.relation.RoleNotFoundException;
+import java.io.IOException;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -36,9 +42,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final RoleService roleService;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final ObjectMapper objectMapper;
 
     @Override
-    public AuthRegisterResponseDTO register(RegisterRequestDto registerRequest) throws UsernameAlreadyTakenException, RoleNotFoundException {
+    @Async
+    public CompletableFuture<AuthRegisterResponseDTO> register(RegisterRequestDto registerRequest) throws UsernameAlreadyTakenException, RoleNotFoundException {
         if (userService.existsByEmail(registerRequest.getEmail())) {
             throw new UsernameAlreadyTakenException("Username already taken. Cannot register");
         }
@@ -55,12 +63,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         userService.save(user);
 
-        return registerResponseDto;
+        return CompletableFuture.completedFuture(registerResponseDto);
     }
 
     @Override
     @Transactional
-    public AuthenticateResponseDTO authenticate(AuthenticateRequestDTO authenticateRequestDTO) throws UserNotFoundException, TokenTypeNotFoundException {
+    public AuthenticationResponseDTO authenticate(AuthenticateRequestDTO authenticateRequestDTO) throws UserNotFoundException, TokenTypeNotFoundException {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         authenticateRequestDTO.getEmail(),
@@ -69,10 +77,44 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         );
 
         User user = userService.findByEmail(authenticateRequestDTO.getEmail());
-        String jwtToken = jwtService.generateToken(user);
 
-        return AuthenticateResponseDTO.builder()
-                .token(jwtToken)
+        String jwtToken = jwtService.generateToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        return AuthenticationResponseDTO.builder()
+                .accessToken(jwtToken)
+                .refreshToken(refreshToken)
                 .build();
+    }
+
+    @Override
+    public void refreshToken(
+            HttpServletRequest request,
+            HttpServletResponse response) throws UserNotFoundException, TokenTypeNotFoundException, IOException {
+        final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        final String refreshToken;
+        final String userEmail;
+
+        if (authHeader == null || !authHeader.startsWith(SecurityConstants.BEARER)) {
+            return;
+        }
+
+        refreshToken = authHeader.substring(7);
+        userEmail = jwtService.extractUsername(refreshToken);
+
+        if (userEmail != null) {
+            User user = userService.findByEmail(userEmail);
+            if (jwtService.isRefreshTokenValid(refreshToken, user)) {
+                String accessToken = jwtService.generateToken(user);
+
+
+                var responseBody = AuthenticationResponseDTO.builder()
+                        .accessToken(accessToken)
+                        .refreshToken(refreshToken)
+                        .build();
+                objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+                objectMapper.writeValue(response.getOutputStream(), responseBody);
+            }
+        }
     }
 }
